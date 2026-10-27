@@ -25,12 +25,10 @@ from transformers import AutoModel, AutoTokenizer
 os.environ.setdefault("CUDA_VISIBLE_DEVICES", "0")
 
 DEEPSEEK_BASELINE = (
-    "/home/ltu_team/workspace/leangchhay/models/"
-    "deepseek_ocr2/deepseek_ocr2_baseline"
+    "" #path to your baseline model
 )
 DEEPSEEK_ADAPTER = (
-    "/home/ltu_team/workspace/leangchhay/models/"
-    "deepseek_ocr2/v2_deepseek_ocr_lora_v2"
+    "" #path to your LoRA adapter model
 )
 
 

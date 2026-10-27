@@ -27,13 +27,11 @@ lora_model.is_bnb_available = lambda: False
 lora_model.is_bnb_4bit_available = lambda: False
 os.environ.setdefault("CUDA_VISIBLE_DEVICES", "0")
 
-PADDLE_BASELINE = (
-    "/home/ltu_team/workspace/leangchhay/models/"
-    "paddle/paddleocr_vl_base"
+DEEPSEEK_BASELINE = (
+    "" #path to your baseline model
 )
-PADDLE_ADAPTER = (
-    "/home/ltu_team/workspace/leangchhay/models/"
-    "paddle/paddleocr_lora_v1"
+DEEPSEEK_ADAPTER = (
+    "" #path to your LoRA adapter model
 )
 TASK_PROMPT = "OCR:"
 
