@@ -8,11 +8,6 @@ from PIL import Image, ImageOps
 from torch.nn.utils.rnn import pad_sequence
 from datasets import load_dataset
 
-from deepseek_ocr2.modeling_deepseekocr2 import (
-    text_encode,
-    BasicImageTransform,
-    dynamic_preprocess,
-)
 
 def convert_to_conversation(batch, instruction="<image>\nFree OCR."):
     """Build the DeepSeek-OCR-2 conversation for each row (applied lazily, on access)."""
@@ -26,21 +21,63 @@ def convert_to_conversation(batch, instruction="<image>\nFree OCR."):
     return batch
 
 
+def convert_to_paddle_conversation(batch, instruction="OCR:"):
+    """Build the PaddleOCR-VL conversation for each row."""
+    batch["messages"] = [
+        [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": instruction},
+                    {"type": "image", "image": image},
+                ],
+            },
+            {
+                "role": "assistant",
+                "content": [{"type": "text", "text": text}],
+            },
+        ]
+        for image, text in zip(batch["image"], batch["text"])
+    ]
+    batch["images"] = [[image] for image in batch["image"]]
+    return batch
+
+
 def load_datasets(
     dataset_name,
     subset="default",
     instruction="<image>\nFree OCR.",
     splits=("train", "validation"),
+    conversation_format="deepseek",
 ):
     """Load the requested dataset splits and attach the conversation messages."""
-    return {
-        split: load_dataset(dataset_name, subset, split=split).with_transform(
-            lambda batch, _instruction=instruction: convert_to_conversation(
+    converters = {
+        "deepseek": convert_to_conversation,
+        "paddle": convert_to_paddle_conversation,
+    }
+    if conversation_format not in converters:
+        raise ValueError(f"Unknown conversation format: {conversation_format}")
+
+    converter = converters[conversation_format]
+    datasets = {}
+    for split in splits:
+        dataset = load_dataset(dataset_name, subset, split=split)
+        datasets[split] = dataset.with_transform(
+            lambda batch, _converter=converter, _instruction=instruction: _converter(
                 batch, _instruction
             )
         )
-        for split in splits
-    }
+    return datasets
+
+
+def _import_deepseek_modules():
+    from deepseek_ocr2.modeling_deepseekocr2 import (
+        text_encode,
+        BasicImageTransform,
+        dynamic_preprocess,
+    )
+
+    return text_encode, BasicImageTransform, dynamic_preprocess
 
 
 @dataclass
@@ -71,6 +108,8 @@ class DeepSeekOCR2DataCollator:
         crop_mode: bool = True,
         train_on_responses_only: bool = True,
     ):
+        text_encode, BasicImageTransform, dynamic_preprocess = _import_deepseek_modules()
+
         self.tokenizer = tokenizer
         self.model = model
         self.image_size = image_size
@@ -79,6 +118,8 @@ class DeepSeekOCR2DataCollator:
         self.image_token_id = 128815
         self.dtype = model.dtype  # Get dtype from model
         self.train_on_responses_only = train_on_responses_only
+        self._text_encode = text_encode
+        self._dynamic_preprocess = dynamic_preprocess
 
         self.image_transform = BasicImageTransform(
             mean = (0.5, 0.5, 0.5),
@@ -129,7 +170,7 @@ class DeepSeekOCR2DataCollator:
                 crop_ratio = (1, 1)
                 images_crop_raw = []
             else:
-                images_crop_raw, crop_ratio = dynamic_preprocess(
+                images_crop_raw, crop_ratio = self._dynamic_preprocess(
                     image, min_num = 2, max_num = 6,
                     image_size = self.image_size, use_thumbnail = False,
                 )
@@ -232,7 +273,7 @@ class DeepSeekOCR2DataCollator:
 
             for i, text_sep in enumerate(text_splits):
                 # Tokenize the text part
-                tokenized_sep = text_encode(self.tokenizer, text_sep, bos = False, eos = False)
+                tokenized_sep = self._text_encode(self.tokenizer, text_sep, bos = False, eos = False)
                 tokenized_str.extend(tokenized_sep)
                 images_seq_mask.extend([False] * len(tokenized_sep))
 
@@ -346,3 +387,63 @@ class DeepSeekOCR2DataCollator:
             "images_seq_mask": images_seq_mask,
             "images_spatial_crop": images_spatial_crop,
         }
+
+
+class PaddleOCRVLDataCollator:
+    """Resolve image paths/PIL images for UnslothVisionDataCollator."""
+
+    def __init__(
+        self,
+        model,
+        processor,
+        ignore_index = -100,
+        max_seq_length = 4096,
+        train_on_responses_only = True,
+        instruction_part = "User:",
+        response_part = "\nAssistant:",
+        pad_to_multiple_of = 8,
+    ):
+        from unsloth.trainer import UnslothVisionDataCollator
+
+        self._inner = UnslothVisionDataCollator(
+            model = model,
+            processor = processor,
+            ignore_index = ignore_index,
+            max_seq_length = max_seq_length,
+            train_on_responses_only = train_on_responses_only,
+            instruction_part = instruction_part,
+            response_part = response_part,
+            pad_to_multiple_of = pad_to_multiple_of,
+        )
+
+    @staticmethod
+    def _resolve_image(image):
+        if isinstance(image, str):
+            return Image.open(image).convert("RGB")
+        return image
+
+    def __call__(self, features):
+        resolved_features = []
+        for row in features:
+            resolved_images = [self._resolve_image(image) for image in row.get("images", [])]
+
+            messages = []
+            for message in row["messages"]:
+                content = []
+                for block in message["content"]:
+                    if block.get("type") == "image":
+                        content.append(
+                            {
+                                "type": "image",
+                                "image": self._resolve_image(block["image"]),
+                            }
+                        )
+                    else:
+                        content.append(block)
+                messages.append({"role": message["role"], "content": content})
+
+            resolved_features.append(
+                {"images": resolved_images, "messages": messages}
+            )
+
+        return self._inner(resolved_features)

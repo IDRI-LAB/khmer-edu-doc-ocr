@@ -1,113 +1,43 @@
-"""Run DeepSeek-OCR 2 baseline or LoRA inference on one image.
+"""Run DeepSeek-OCR-2 baseline and/or LoRA inference on the KhmerEduDoc test set.
 
 Examples:
-    python deepseek_ocr_inference.py /path/to/image.png --model baseline
-    python deepseek_ocr_inference.py /path/to/image.png --model adapter
+    python "src/inference/DeepSeek_OCR2(3B).py" --row 0
+    python "src/inference/DeepSeek_OCR2(3B).py" --row 10 --model lora --split test_setA
+    python "src/inference/DeepSeek_OCR2(3B).py" --model both --split test_setB
 
-The public functions are ``infer_baseline(image_path)`` and
-``infer_adapter(image_path)``. Both return the OCR/Markdown text.
+If --row is omitted, every row in the selected split is processed. Predictions,
+per-sample metrics, and the micro-average report are written to the output
+directory configured under inference.output_dir.
 """
 
-import argparse
-import gc
-import os
 import sys
-import tempfile
 from pathlib import Path
 
-sys.modules["flash_attn"] = None
-sys.modules["torchao"] = None
+SRC_DIR = Path(__file__).resolve().parent.parent
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
 
-import torch
-from peft import PeftModel
-from transformers import AutoModel, AutoTokenizer
-
-os.environ.setdefault("CUDA_VISIBLE_DEVICES", "0")
-
-DEEPSEEK_BASELINE = (
-    "" #path to your baseline model
-)
-DEEPSEEK_ADAPTER = (
-    "" #path to your LoRA adapter model
-)
+from utils.inference_engine import DeepSeekOCREngine
+from utils.inference_runner import build_parser, run_inference
 
 
-def _check_image_path(image_path: str | os.PathLike[str]) -> Path:
-    path = Path(image_path).expanduser().resolve()
-    if not path.is_file():
-        raise FileNotFoundError(f"Image file not found: {path}")
-    return path
+def build_predict_kwargs(inference_config):
+    return {
+        "prompt": inference_config.get("prompt", "<image>\nFree OCR."),
+        "image_size": inference_config.get("image_size", 768),
+        "base_size": inference_config.get("base_size", 1024),
+        "crop_mode": inference_config.get("crop_mode", True),
+    }
 
 
-def _run(image_path: str | os.PathLike[str], adapter_path: str | None) -> str:
-    image = _check_image_path(image_path)
-    if not torch.cuda.is_available():
-        raise RuntimeError("DeepSeek-OCR inference requires a CUDA device.")
-
-    tokenizer = AutoTokenizer.from_pretrained(
-        DEEPSEEK_BASELINE, trust_remote_code=True
+def main():
+    args = build_parser(__doc__).parse_args()
+    run_inference(
+        args,
+        config_section="deepseek",
+        engine_cls=DeepSeekOCREngine,
+        predict_kwargs_fn=build_predict_kwargs,
     )
-    base_model = AutoModel.from_pretrained(
-        DEEPSEEK_BASELINE,
-        _attn_implementation="eager",
-        trust_remote_code=True,
-        use_safetensors=True,
-    ).eval().cuda().to(torch.bfloat16)
-
-    model = base_model
-    if adapter_path is not None:
-        model = PeftModel.from_pretrained(
-            base_model, adapter_path
-        ).merge_and_unload()
-    model = model.eval().cuda().to(torch.bfloat16)
-
-    with tempfile.TemporaryDirectory(prefix="deepseek_ocr_") as output_dir:
-        model.infer(
-            tokenizer,
-            prompt="<image>\nFree OCR.",
-            image_file=str(image),
-            output_path=output_dir,
-            image_size=768,
-            base_size=1024,
-            crop_mode=True,
-            save_results=True,
-            test_compress=False,
-        )
-        result_path = Path(output_dir) / "result.mmd"
-        if not result_path.is_file():
-            raise RuntimeError(
-                f"DeepSeek-OCR did not create an output file: {result_path}"
-            )
-        result = result_path.read_text(encoding="utf-8").strip()
-
-    del model, base_model, tokenizer
-    gc.collect()
-    torch.cuda.empty_cache()
-    return result
-
-
-def infer_baseline(image_path: str | os.PathLike[str]) -> str:
-    """Run DeepSeek-OCR 2 baseline inference for ``image_path``."""
-    return _run(image_path, adapter_path=None)
-
-
-def infer_adapter(image_path: str | os.PathLike[str]) -> str:
-    """Run DeepSeek-OCR 2 with the configured LoRA adapter."""
-    return _run(image_path, adapter_path=DEEPSEEK_ADAPTER)
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("image_path", type=Path)
-    parser.add_argument(
-        "--model",
-        choices=("baseline", "adapter"),
-        default="baseline",
-        help="Use the base model or the configured LoRA adapter.",
-    )
-    args = parser.parse_args()
-    infer = infer_baseline if args.model == "baseline" else infer_adapter
-    print(infer(args.image_path))
 
 
 if __name__ == "__main__":
