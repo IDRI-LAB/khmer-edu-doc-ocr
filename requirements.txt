@@ -1,0 +1,40 @@
+# PyTorch CUDA 12.4 wheels
+--extra-index-url https://download.pytorch.org/whl/cu124
+
+# Core stack
+torch==2.6.0+cu124
+torchvision==0.21.0+cu124
+triton==3.2.0
+
+# Model / training stack
+unsloth==2026.6.1
+transformers==4.56.2
+tokenizers==0.22.2
+accelerate==1.15.0
+peft==0.21.2
+trl==0.24.0
+datasets==4.3.0
+bitsandbytes==0.49.2
+safetensors==0.8.0
+sentencepiece==0.2.2
+protobuf==7.36.2
+huggingface_hub==0.36.2
+
+# DeepSeek-OCR-2 and PaddleOCR-VL helpers
+addict==2.4.0
+einops==0.8.2
+
+# Data / config / images
+numpy==2.2.6
+pillow==12.3.0
+PyYAML==6.0.3
+
+# Logging and runtime helpers
+psutil==7.2.2
+tqdm==4.67.1
+packaging==26.3
+matplotlib==3.11.2
+
+# Khmer evaluation metrics
+khmer-nlp-toolkits==0.2.2
+python-Levenshtein==0.27.3

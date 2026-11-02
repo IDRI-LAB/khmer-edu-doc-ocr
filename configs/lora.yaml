@@ -21,7 +21,7 @@ deepseek:
       - gate_proj
       - up_proj
       - down_proj
-    r: 16  # Paper: r = alpha = 16
+    r: 16 # Paper: r = alpha = 16
     lora_alpha: 16
     lora_dropout: 0
     bias: none
@@ -36,8 +36,8 @@ deepseek:
     validation_split: validation
     test_split: test_setB
     instruction: "<image>\nFree OCR."
-    image_size: 768  # Paper: 768 minimum resolution
-    base_size: 1024  # Paper: 1024 base resolution
+    image_size: 768 # Paper: 768 minimum resolution
+    base_size: 1024 # Paper: 1024 base resolution
     crop_mode: true
     train_on_responses_only: true
 
@@ -62,7 +62,7 @@ deepseek:
     save_steps: 1000
     # 61,750 training pages x 2 epochs / effective batch 10 = 12,350 steps
     num_train_epochs: 2
-    learning_rate: 1.0e-4  # Paper: 1e-4
+    learning_rate: 1.0e-4 # Paper: 1e-4
     logging_steps: 10
     optim: adamw_8bit
     weight_decay: 0.001
@@ -106,7 +106,7 @@ paddle:
       - fc2
       - linear_1
       - linear_2
-    r: 64  # Paper: r = alpha = 64
+    r: 64 # Paper: r = alpha = 64
     lora_alpha: 64
     lora_dropout: 0
     bias: none
@@ -149,7 +149,7 @@ paddle:
     save_steps: 1000
     # 61,750 training pages x 2 epochs / effective batch 10 = 12,350 steps
     num_train_epochs: 2
-    learning_rate: 5.0e-5  # Paper: 5e-5
+    learning_rate: 5.0e-5 # Paper: 5e-5
     logging_steps: 10
     optim: adamw_8bit
     weight_decay: 0.001
