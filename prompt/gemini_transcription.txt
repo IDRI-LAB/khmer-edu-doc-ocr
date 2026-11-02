@@ -1,0 +1,85 @@
+Perform high-fidelity OCR and content extraction on ALL attached images.
+
+You will receive one or more images. Process EVERY image.
+For each image, output a SOURCE block first, then extract the pure text content.
+
+SOURCE block format:
+--- SOURCE: {filename.png} ---
+
+If the filename is known, use it. Otherwise use the index: Image 1, Image 2, etc.
+
+STRICT OUTPUT REQUIREMENTS
+
+1. Output Format
+Return ONLY the raw content text exactly as it appears in the document.
+Do NOT output any block types, categorizations, bounding boxes, or XML-style tags.
+Output the text in natural reading order (top-to-bottom, left-to-right).
+
+2. Content to Exclude
+Do NOT extract or output any of the following, even though they are visible in the image:
+- Images, figures, photos, charts, diagrams, icons, logos, signatures, or stamps
+- Table of Contents (TOC), Indexes, or menus with repeated dot leaders (e.g., "Chapter 1 ................ 5"). Skip these entirely.
+- Pages consisting primarily of author lists, committee members, or publication credits. If a page is just a list of names, ignore the entire page and output nothing.
+- Signature blocks
+- Dates stamped as document metadata (e.g. "printed on", letterhead dates) — unless the date is itself part of the main body content
+- Any decorative, branding, or boilerplate text unrelated to the main content
+
+Focus exclusively on the main substantive body content of the document.
+
+3. Table Rules
+- Serialize tables as HTML using <table>, <tr>, <td> tags.
+- Preserve all cell values exactly as they appear.
+- Merge cells are not required; represent each cell as individual <td>.
+
+4. Equation Rules
+- Serialize all math expressions as LaTeX.
+- Use \[ \] for block/standalone equations.
+- Use \( \) for inline equations.
+- Preserve all symbols, fractions, exponents, and subscripts exactly.
+- Example block:   \[ \frac{7 \cdot 4}{2} = 14 \]
+- Example inline:  \( x^2 + y^2 = z^2 \)
+
+5. English Language Rules
+- If any text is in English, extract it exactly as it appears.
+- Do NOT translate English text to Khmer or any other language.
+- Do NOT translate Khmer text to English.
+- Preserve the original language of every text faithfully.
+
+6. Khmer OCR Rules
+- Preserve Khmer diacritics exactly.
+- Preserve subscripts (ជើងអក្សរ).
+- Preserve punctuation and spacing faithfully.
+- Do not normalize or rewrite text.
+
+7. Output Restrictions
+- Do NOT return JSON.
+- Do NOT explain anything.
+- Do NOT add markdown formatting beyond what is necessary for tables/math.
+- Do NOT add conversational text.
+- Do NOT return any block categorization tags like "text|title" or "table|table".
+
+Few-Shot Examples
+
+-- Text Example --
+១. លក្ខណៈនៃកម្មវិធីសិក្សា
+សាកលវិទ្យាល័យភូមិន្ទភ្នំពេញគឺជាគ្រឹះស្ថានឧត្តមសិក្សារដ្ឋ...
+- លើកកម្ពស់គុណភាពគ្រូបង្រៀន
+The Royal University of Phnom Penh was established in 1960.
+* សម្គាល់៖ ឯកសារនេះមានសុពលភាពរហូតដល់ឆ្នាំ២០២៥
+
+-- Table Example --
+<table><tr><td>មុខវិជ្ជា</td><td>ឯកតា</td><td>ថ្នាក់</td></tr><tr><td>គណិតវិទ្យា</td><td>3</td><td>A</td></tr><tr><td>រូបវិទ្យា</td><td>4</td><td>B</td></tr></table>
+
+-- Multi-image output example --
+
+--- SOURCE: Image 1 ---
+១. លក្ខណៈនៃកម្មវិធីសិក្សា
+
+សាកលវិទ្យាល័យភូមិន្ទភ្នំពេញ...
+
+--- SOURCE: Image 2 ---
+២. គោលបំណងនៃកម្មវិធីសិក្សា
+
+កម្មវិធីសិក្សានេះមានគោលបំណង...
+
+Task: Process ALL attached images now. Output a SOURCE block before each image's content. Do not extract any images. Return ONLY the SOURCE blocks and raw text/table/math content.
