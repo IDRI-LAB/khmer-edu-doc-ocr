@@ -174,6 +174,15 @@ Outputs are written to `src/output/deepseek/` and `src/output/paddle/`:
 
 Columns: `image`, `text`, `book_id`, `page`, `label_source`, `content_type`.
 
+## References
+
+- Khmer normalization in `src/utils/khmer_norm.py` is from
+  [KHCWER](https://github.com/keosaly/KHCWER/blob/main/khmer_norm.py).
+- DeepSeek-OCR-2 fine-tuning is adapted from the
+  [Unsloth DeepSeek-OCR-2 notebook](<https://github.com/unslothai/notebooks/blob/main/nb/Deepseek_OCR_2_(3B).ipynb>).
+- PaddleOCR-VL fine-tuning is adapted from the
+  [Unsloth PaddleOCR-VL notebook](<https://github.com/unslothai/notebooks/blob/main/nb/Paddle_OCR_(1B)_Vision.ipynb>).
+
 ## Contribution
 
 - [Kimleangchhay SONG](https://github.com/leangchhay1523)
